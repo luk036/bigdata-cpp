@@ -1,0 +1,5 @@
+/** @page about About
+  @section doc bigdata-cpp Documentation
+  This is the auto-generated documentation for bigdata-cpp, a header-only C++ library of streaming
+  probabilistic sketches (Count-Min Sketch and HyperLogLog) for electronic design automation.
+*/
