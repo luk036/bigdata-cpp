@@ -141,3 +141,12 @@ TEST_CASE("CountMinSketch reports the additive error bound") {
     CHECK(estimate == doctest::Approx(sketch.query(7)));
     CHECK(bound == doctest::Approx(std::exp(1.0) * sketch.total() / 100.0));
 }
+
+TEST_CASE("CountMinSketch from_error sizes the dimensions") {
+    const auto sketch = CountMinSketch::from_error(0.001, 0.01);
+    CHECK(sketch.width() == 2719);
+    CHECK(sketch.depth() == 5);
+    CHECK_THROWS_AS((void)CountMinSketch::from_error(0.0), std::invalid_argument);
+    CHECK_THROWS_AS((void)CountMinSketch::from_error(0.001, 1.0), std::invalid_argument);
+    CHECK_THROWS_AS((void)CountMinSketch::from_error(0.001, 0.0), std::invalid_argument);
+}

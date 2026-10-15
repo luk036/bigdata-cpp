@@ -69,6 +69,27 @@ class CountMinSketch {
     }
 
     /**
+     * @brief Construct a sketch sized for a target error.
+     * @param[in] epsilon Relative error, e.g. 0.001.
+     * @param[in] delta Failure probability, e.g. 0.01.
+     * @param[in] mode Update strategy.
+     * @return A sketch with the standard @f$(\varepsilon, \delta)@f$ dimensions.
+     * @throws std::invalid_argument if @p epsilon is not positive or @p delta is
+     *         not in @f$(0, 1)@f$.
+     */
+    [[nodiscard]] static auto from_error(double epsilon = 0.001, double delta = 0.01,
+                                         UpdateMode mode = UpdateMode::Min) -> CountMinSketch {
+        if (!(epsilon > 0.0)) {
+            throw std::invalid_argument("epsilon must be positive");
+        }
+        if (!(delta > 0.0 && delta < 1.0)) {
+            throw std::invalid_argument("delta must be in (0, 1)");
+        }
+        return CountMinSketch{static_cast<std::size_t>(std::ceil(std::exp(1.0) / epsilon)),
+                              static_cast<std::size_t>(std::ceil(std::log(1.0 / delta))), mode};
+    }
+
+    /**
      * @brief Add @p value for @p key.
      * @param[in] key The key (e.g. a node id).
      * @param[in] value The weight to add.
