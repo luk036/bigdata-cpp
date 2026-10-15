@@ -97,3 +97,11 @@ TEST_CASE("HyperLogLog validates its precision") {
     HyperLogLog b{13};
     CHECK_THROWS_AS(a.merge(b), std::invalid_argument);
 }
+
+TEST_CASE("HyperLogLog from_error sizes the precision") {
+    const auto hll = HyperLogLog::from_error(0.02);
+    CHECK(hll.m() == (std::size_t{1} << hll.p()));
+    CHECK(1.04 / std::sqrt(static_cast<double>(hll.m())) <= 0.02);
+    CHECK_THROWS_AS((void)HyperLogLog::from_error(0.0), std::invalid_argument);
+    CHECK_THROWS_AS((void)HyperLogLog::from_error(1.5), std::invalid_argument);
+}
