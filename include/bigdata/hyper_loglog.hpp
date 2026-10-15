@@ -1,13 +1,14 @@
 #pragma once
 
-#include <cmath>        // for ldexp, log
+#include <cmath>        // for ceil, log2, pow
 #include <cstddef>      // for size_t
 #include <cstdint>      // for uint64_t, uint8_t
 #include <stdexcept>    // for invalid_argument
 #include <string_view>  // for string_view
 #include <vector>       // for vector
 
-#include <bigdata/hll_hash.hpp>  // for fmix64, hash_bytes
+#include <bigdata/hll_core.hpp>  // for rank_of, alpha_for, estimate_from_registers
+#include <bigdata/hll_hash.hpp>  // for hash_value
 
 namespace bigdata {
 
@@ -27,20 +28,31 @@ class HyperLogLog {
      * @param[in] p Precision in bits; @f$4 \le p \le 16@f$.
      * @throws std::invalid_argument if @p p is out of range.
      */
-    explicit HyperLogLog(int p = 14)
-        : p_{p}, m_{std::size_t{1} << p_}, registers_(std::size_t{1} << p_, 0) {
+    explicit HyperLogLog(int p = 14) : p_{p}, m_{std::size_t{1} << p_}, registers_(m_, 0) {
         if (p < 4 || p > 16) {
             throw std::invalid_argument("p must be between 4 and 16");
         }
-        if (m_ == 16) {
-            alpha_ = 0.673;
-        } else if (m_ == 32) {
-            alpha_ = 0.697;
-        } else if (m_ == 64) {
-            alpha_ = 0.709;
-        } else {
-            alpha_ = 0.7213 / (1.0 + 1.079 / static_cast<double>(m_));
+    }
+
+    /**
+     * @brief Construct a sketch sized for a target relative error.
+     * @param[in] rel_error Target standard error, e.g. 0.02 for 2%.
+     * @return A sketch whose precision gives a standard error of about @p rel_error.
+     * @throws std::invalid_argument if @p rel_error is not in @f$(0, 1)@f$.
+     */
+    [[nodiscard]] static auto from_error(double rel_error = 0.02) -> HyperLogLog {
+        if (!(rel_error > 0.0 && rel_error < 1.0)) {
+            throw std::invalid_argument("relative error must be in (0, 1)");
         }
+        const auto m = static_cast<std::size_t>(std::ceil(std::pow(1.04 / rel_error, 2.0)));
+        int p = static_cast<int>(std::ceil(std::log2(static_cast<double>(m))));
+        if (p < 4) {
+            p = 4;
+        }
+        if (p > 16) {
+            p = 16;
+        }
+        return HyperLogLog{p};
     }
 
     /**
@@ -50,9 +62,9 @@ class HyperLogLog {
     void add_hash(std::uint64_t hash) {
         const auto index = static_cast<std::size_t>(hash >> (64 - p_));
         const auto remaining = hash & ((std::uint64_t{1} << (64 - p_)) - 1U);
-        const auto rank = rank_of(remaining);
+        const auto rank = detail::rank_of(remaining, 64 - p_);
         if (rank > registers_[index]) {
-            registers_[index] = rank;
+            registers_[index] = static_cast<std::uint8_t>(rank);
         }
     }
 
@@ -77,24 +89,7 @@ class HyperLogLog {
      * @return The cardinality estimate.
      */
     [[nodiscard]] auto count() const -> double {
-        double z = 0.0;
-        std::size_t zeros = 0;
-        for (const auto reg : registers_) {
-            z += std::ldexp(1.0, -static_cast<int>(reg));
-            if (reg == 0) {
-                ++zeros;
-            }
-        }
-        double estimate = alpha_ * static_cast<double>(m_) * static_cast<double>(m_) / z;
-        if (estimate <= 2.5 * static_cast<double>(m_)) {
-            if (zeros != 0) {
-                estimate = static_cast<double>(m_) * std::log(static_cast<double>(m_) /
-                                                              static_cast<double>(zeros));
-            }
-        } else if (estimate > (1.0 / 30.0) * TWO_POW_64) {
-            estimate = -TWO_POW_64 * std::log(1.0 - estimate / TWO_POW_64);
-        }
-        return estimate;
+        return detail::estimate_from_registers(registers_.begin(), registers_.end(), p_);
     }
 
     /**
@@ -126,26 +121,8 @@ class HyperLogLog {
     }
 
   private:
-    static constexpr double TWO_POW_64 = 18446744073709551616.0;  ///< 2^64 as a double.
-
-    /// Rank = leading zeros in the (64 - p)-bit field, plus one.
-    [[nodiscard]] auto rank_of(std::uint64_t remaining) const -> std::uint8_t {
-        const int bits = 64 - p_;
-        if (remaining == 0) {
-            return static_cast<std::uint8_t>(bits + 1);
-        }
-        int zeros = 0;
-        std::uint64_t mask = std::uint64_t{1} << (bits - 1);
-        while ((remaining & mask) == 0) {
-            ++zeros;
-            mask >>= 1U;
-        }
-        return static_cast<std::uint8_t>(zeros + 1);
-    }
-
     int p_;
     std::size_t m_;
-    double alpha_{0.0};
     std::vector<std::uint8_t> registers_;
 };
 

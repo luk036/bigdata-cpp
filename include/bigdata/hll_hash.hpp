@@ -5,6 +5,8 @@
 #include <type_traits>   // for enable_if_t, is_integral_v
 #include <vector>        // for vector
 
+#include <bigdata/hll_core.hpp>  // for fmix64
+
 namespace bigdata {
 
 /**
@@ -15,20 +17,6 @@ namespace bigdata {
  * of a key. Folding a string hashes *every* byte (FNV-1a) before finalising, so
  * keys that share a prefix still hash differently.
  */
-
-/**
- * @brief MurmurHash3 64-bit finalizer.
- * @param[in] x The value to mix.
- * @return A well-distributed 64-bit hash.
- */
-[[nodiscard]] constexpr auto fmix64(std::uint64_t x) noexcept -> std::uint64_t {
-    x ^= x >> 33U;
-    x *= 0xFF51AFD7ED558CCDULL;
-    x ^= x >> 33U;
-    x *= 0xC4CEB9FE1A85EC53ULL;
-    x ^= x >> 33U;
-    return x;
-}
 
 /**
  * @brief FNV-1a fold over every byte, finalised with fmix64.
