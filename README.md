@@ -105,7 +105,7 @@ target_link_libraries(my_app PRIVATE BigData::BigData)
 ## Project layout
 
 ```
-include/bigdata/     # Public headers: hll_hash.hpp, count_min_sketch.hpp, hyper_loglog.hpp, hyper_loglog_gpu.hpp
+include/bigdata/     # Public headers: hll_core.hpp, hll_hash.hpp, count_min_sketch.hpp, hyper_loglog.hpp, hyper_loglog_gpu.hpp
 source/              # hll_gpu.cu (compiled by nvcc into the test binary when CUDA is available)
 test/source/         # doctest tests
 standalone/          # Example executable

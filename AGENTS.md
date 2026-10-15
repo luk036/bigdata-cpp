@@ -8,6 +8,7 @@ bigdata-cpp is a header-only C++17 library of streaming probabilistic sketches f
 
 - **CountMinSketch** - event-frequency estimation (with Count-Mean-Min and conservative update)
 - **HyperLogLog** - cardinality estimation
+- **hll_core** - the shared rank / alpha / estimator used by both the CPU and CUDA HyperLogLog paths
 - **hll_hash** - the single shared 64-bit hash family used by both sketches
 - **hyper_loglog_gpu** - optional fused CUDA kernel (`source/hll_gpu.cu`, compiled with `-DHAS_CUDA`)
 
@@ -22,6 +23,15 @@ host compiler is MSVC (on Windows).
 ```bash
 cmake -B build
 cmake --build build
+```
+
+### Alternative Build (xmake)
+
+```bash
+xmake f -o build_xmake    # CPU-only; add --cuda=y for the GPU kernel
+xmake
+xmake run BigDataTests
+xmake run BigData --events 1000000 --nodes 10000
 ```
 
 ### Running Tests
